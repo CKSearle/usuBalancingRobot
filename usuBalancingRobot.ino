@@ -9,7 +9,8 @@
 
 #define MIN_ABS_SPEED 20
 
-# Test sent from Kevin to GitHub
+// Test sent from Kevin to GitHub
+// 2nd test sent from Kevin
 
 MPU6050 mpu;
 
