@@ -9,10 +9,6 @@
 
 #define MIN_ABS_SPEED 20
 
-// Test sent from Kevin to GitHub
-// 2nd test sent from Kevin
-// 3rd test sent from Kevin
-
 MPU6050 mpu;
 
 // MPU control/status vars
@@ -29,17 +25,17 @@ VectorFloat gravity;    // [x, y, z]            gravity vector
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 //PID
-double originalSetpoint = 175.8;
+double originalSetpoint = 203; //170-> 10deg N, 190-> 5deg N, 206-> Very Close!
 double setpoint = originalSetpoint;
 double movingAngleOffset = 0.1;
 double input, output;
 int moveState=0; //0 = balance; 1 = back; 2 = forth
-double Kp = 50;
-double Kd = 1.4;
-double Ki = 60;
+double Kp = 260.0;  //130.0
+double Kd = 2.2;
+double Ki = 270;
 PID pid(&input, &output, &setpoint, Kp, Ki, Kd, DIRECT);
 
-double motorSpeedFactorLeft = 0.6;
+double motorSpeedFactorLeft = 0.5;
 double motorSpeedFactorRight = 0.5;
 //MOTOR CONTROLLER
 int ENA = 5;
