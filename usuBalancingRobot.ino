@@ -6,10 +6,16 @@
 #include <stdio.h>
 
 // Analog pin to test motor deadband
-int analogPin = 3;     // potentiometer wiper (middle terminal) connected to analog pin 3
-int analogTorque = 0;  // variable for analog value minus analog power supply offset
-int val = 0;           // variable to store the value read
+int analogPin1 = 1;     // potentiometer connected to analog pin
+int analogPin2 = 2;     // potentiometer connected to analog pin
+int analogPin3 = 3;     // potentiometer connected to analog pin  
 
+// Variables for settings gains via analog inputs
+float inKp, inKd, inKi = 0.0;
+
+// Display variables (for debugging)
+double error;
+double pitch;
 
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
@@ -33,19 +39,19 @@ VectorFloat gravity;    // [x, y, z]            gravity vector
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 //PID
-double originalSetpoint = 190.75; //186.75; //190.75;  // N->decreasing
+double originalSetpoint = 189.25; //186.75; //190.75;  // N->decreasing
 double setpoint = originalSetpoint;
 double movingAngleOffset = 0.1;
 double input, output;
 int moveState=0; //0 = balance; 1 = back; 2 = forth
-double Kp = 25.0;//30.0;
-double Kd = 0.0;//1.35;
-double Ki = 0;//375;
+double Kp = 30.0;
+double Kd = 1.35;
+double Ki = 375;
 PID pid(&input, &output, &setpoint, Kp, Ki, Kd, DIRECT);
 // imu_angle = imu_angle - coeff*imu_angle_prev
 
 double motorSpeedFactorLeft = 0.9;
-double motorSpeedFactorRight = 0.9;//0.6 
+double motorSpeedFactorRight = 0.9;
 //MOTOR CONTROLLER
 int ENA = 5;
 int IN1 = 6;
@@ -64,7 +70,6 @@ void dmpDataReady()
 {
     mpuInterrupt = true;
 }
-
 
 void setup()
 {
@@ -140,15 +145,7 @@ void setup()
 
 
 void loop()
-{
-
-
-    double error; // for debugging
-    double pitch;
-    double setPointDeg;
-    
-    
-    
+{    
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
 
@@ -159,21 +156,21 @@ void loop()
         
         pid.Compute();
 
+        /*
+        // Compute display variables (for debugging)
         pitch = ypr[1] * 180/M_PI;
         error = input - setpoint;
-
-        // Read analog pin value for motor deadband test
-        val = analogRead(analogPin);     // read the input pin
-        //analogTorque = val; //max = 700, min = 0
-        Kp = val; 
-        pid.SetTunings(Kp, Ki, Kd);
+        */
         
-        Serial.print("Analog value: "); Serial.print(val); Serial.print("   Set point: "); Serial.print(setpoint); Serial.print("  Input (yaw): "); Serial.print(input); Serial.print("  Output (torque): "); Serial.println(output); 
-        
-        //Serial.print("     Motor control value: "); Serial.println(output); // output motor control value
+        // Read analog pins
+        inKp = ((float)analogRead(analogPin1))/4;       // read pin for proportional gain
+        inKd = ((float)analogRead(analogPin2))/200;     // read pin for derivative gain
+        inKi = ((float)analogRead(analogPin3))/2;       // read pin for integral gain
 
-        //motorController.move(analogTorque, 0);
-        //motorController.move(0, 0);
+        // Set and print PID gains
+        pid.SetTunings(inKp, inKi, inKd);
+        Serial.print("   Kp: "); Serial.print(inKp); Serial.print("   Kd: "); Serial.print(inKd); Serial.print("   Ki: "); Serial.println(inKi);
+        
         motorController.move(output, MIN_ABS_SPEED);
         
     }
