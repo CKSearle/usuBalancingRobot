@@ -2,12 +2,20 @@
 #include <LMotorController.h>
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
+#include <Arduino.h>
+#include <stdio.h>
+
+// Analog pin to test motor deadband
+int analogPin = 3;     // potentiometer wiper (middle terminal) connected to analog pin 3
+int analogTorque = 0;  // variable for analog value minus analog power supply offset
+int val = 0;           // variable to store the value read
+
 
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
 #endif
 
-#define MIN_ABS_SPEED 20
+#define MIN_ABS_SPEED 0
 
 MPU6050 mpu;
 
@@ -25,18 +33,19 @@ VectorFloat gravity;    // [x, y, z]            gravity vector
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 //PID
-double originalSetpoint = 192.0; // N->decreasing
+double originalSetpoint = 190.75; //186.75; //190.75;  // N->decreasing
 double setpoint = originalSetpoint;
 double movingAngleOffset = 0.1;
 double input, output;
 int moveState=0; //0 = balance; 1 = back; 2 = forth
-double Kp = 350.0;//260.0;
-double Kd = 0.0;//2.2;
-double Ki = 0.0;//270;
+double Kp = 25.0;//30.0;
+double Kd = 0.0;//1.35;
+double Ki = 0;//375;
 PID pid(&input, &output, &setpoint, Kp, Ki, Kd, DIRECT);
+// imu_angle = imu_angle - coeff*imu_angle_prev
 
-double motorSpeedFactorLeft = 0.6;
-double motorSpeedFactorRight = 0.6;
+double motorSpeedFactorLeft = 0.9;
+double motorSpeedFactorRight = 0.9;//0.6 
 //MOTOR CONTROLLER
 int ENA = 5;
 int IN1 = 6;
@@ -59,6 +68,7 @@ void dmpDataReady()
 
 void setup()
 {
+    
     // join I2C bus (I2Cdev library doesn't do this automatically)
     #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
         Wire.begin();
@@ -131,6 +141,14 @@ void setup()
 
 void loop()
 {
+
+
+    double error; // for debugging
+    double pitch;
+    double setPointDeg;
+    
+    
+    
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
 
@@ -140,6 +158,22 @@ void loop()
         //no mpu data - performing PID calculations and output to motors
         
         pid.Compute();
+
+        pitch = ypr[1] * 180/M_PI;
+        error = input - setpoint;
+
+        // Read analog pin value for motor deadband test
+        val = analogRead(analogPin);     // read the input pin
+        //analogTorque = val; //max = 700, min = 0
+        Kp = val; 
+        pid.SetTunings(Kp, Ki, Kd);
+        
+        Serial.print("Analog value: "); Serial.print(val); Serial.print("   Set point: "); Serial.print(setpoint); Serial.print("  Input (yaw): "); Serial.print(input); Serial.print("  Output (torque): "); Serial.println(output); 
+        
+        //Serial.print("     Motor control value: "); Serial.println(output); // output motor control value
+
+        //motorController.move(analogTorque, 0);
+        //motorController.move(0, 0);
         motorController.move(output, MIN_ABS_SPEED);
         
     }
@@ -173,7 +207,7 @@ void loop()
         fifoCount -= packetSize;
 
         mpu.dmpGetQuaternion(&q, fifoBuffer);
-        mpu.dmpGetGravity(&gravity, &q);
+        mpu.dmpGetGravity(&gravity, &q);  
         mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
         #if LOG_INPUT
             Serial.print("ypr\t");
@@ -183,7 +217,7 @@ void loop()
             Serial.print("\t");
             Serial.println(ypr[2] * 180/M_PI);
         #endif
-        input = ypr[1] * 180/M_PI + 180;
+        input = (ypr[1] * 180/M_PI + 180);
    }
 }
 
